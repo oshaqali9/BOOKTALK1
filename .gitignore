@@ -1,0 +1,18 @@
+.env.local 
+
+# dependencies
+node_modules/
+
+# build output
+.next/
+out/
+dist/
+
+# env
+.env*
+.vercel/
+
+# misc
+coverage/
+*.log
+
