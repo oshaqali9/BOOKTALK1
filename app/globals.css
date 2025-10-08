@@ -1,10 +1,18 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-body { @apply bg-slate-950 text-slate-100 antialiased; }
-
-html, body {
-  min-height: 100%;
-  background-color: #020617;
-}
+diff --git a/app/globals.css b/app/globals.css
+index fb2ea80e068d5258fbac45cb439bb2117df4488b..aaa0a45186c6c85c2c3fca6ff1481f9c5e0ebf13 100644
+--- a/app/globals.css
++++ b/app/globals.css
+@@ -1,10 +1,11 @@
+ @tailwind base;
+ @tailwind components;
+ @tailwind utilities;
+ 
+-body { @apply bg-slate-950 text-slate-100 antialiased; }
++body { @apply bg-white text-slate-900 antialiased; }
+ 
+ html, body {
+   min-height: 100%;
+-  background-color: #020617;
++  background-color: #ffffff;
++  color-scheme: light;
+ }
