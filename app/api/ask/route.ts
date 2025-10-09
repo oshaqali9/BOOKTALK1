@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
+import { openai } from "@/lib/openai";
 
 // --- Types -----------------------------------------------------------------
 type RetrievedChunk = {
@@ -8,11 +8,6 @@ type RetrievedChunk = {
   content: string;
   similarity: number;
 };
-
-// --- Clients ---------------------------------------------------------------
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,11 +26,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No question provided' }, { status: 400 });
     }
 
+    const trimmed = String(question).trim().slice(0, 1000);
+    if (!trimmed) {
+      return NextResponse.json({ error: 'Empty question' }, { status: 400 });
+    }
+
+    // Optional: verify document exists when provided
+    if (documentId) {
+      const { data: docExists, error: docErr } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('id', documentId)
+        .single();
+      if (docErr) {
+        return NextResponse.json({ error: 'Document lookup failed', details: docErr.message }, { status: 500 });
+      }
+      if (!docExists) {
+        return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      }
+    }
+
     // 1️⃣ Create embedding for the question
     console.log('Creating embedding for question:', question);
     const embeddingResponse = await openai.embeddings.create({
       model: 'text-embedding-3-small',
-      input: question,
+      input: trimmed,
     });
 
     const questionEmbedding = embeddingResponse.data[0].embedding;
@@ -68,9 +83,7 @@ export async function POST(req: NextRequest) {
 
     // 3️⃣ Build the context string
     const context = chunks
-      .map((chunk: RetrievedChunk, i: number) => 
-        `[Page ${chunk.page_number}]: ${chunk.content}`
-      )
+      .map((chunk: RetrievedChunk) => `[# Page ${chunk.page_number}] ${String(chunk.content).replace(/\s+/g, ' ').slice(0, 1200)}`)
       .join("\n\n");
 
     // 4️⃣ Ask OpenAI using the retrieved context
@@ -81,11 +94,11 @@ export async function POST(req: NextRequest) {
         {
           role: "system",
           content:
-            "You are a helpful assistant that answers questions based on the provided context from a document. Always cite the page numbers when referencing information. If the context doesn't contain enough information to answer the question, say so.",
+            "You answer strictly from the provided context. If the context lacks the answer, say you don't know. Always cite page numbers.",
         },
         {
           role: "user",
-          content: `Context from the document:\n\n${context}\n\nQuestion: ${question}`,
+          content: `Context from the document:\n\n${context}\n\nQuestion: ${trimmed}`,
         },
       ],
       temperature: 0.2,
